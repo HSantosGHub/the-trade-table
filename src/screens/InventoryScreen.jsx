@@ -18,7 +18,7 @@ export default function InventoryScreen({ categories, onSelectItem, onAddItem, o
     setLoading(true);
     const { data, error } = await supabase
       .from("items")
-      .select("*, categories(*), listings(*), item_photos(*), sales(id, buyer_id, price, sale_date, site, buyers(name)), accounts(id, name, suggest_payback)")
+      .select("*, categories(*), listings(*), item_photos(*), sales(id, buyer_id, price, sale_date, site, buyers(name)), account_transactions(id, account_id, type, amount, accounts(name, suggest_payback))")
       .eq("status", statusView)
       .order(statusView === "sold" ? "updated_at" : "created_at", { ascending: false });
     if (!error) setItems(data || []);
