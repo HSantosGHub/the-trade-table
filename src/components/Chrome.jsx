@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, User, BarChart3, LayoutGrid } from "lucide-react";
+import { ArrowLeft, User, BarChart3, LayoutGrid, Wallet } from "lucide-react";
 
 export function Logo({ size = 30, color = "#F2E8DE" }) {
   return (
@@ -36,6 +36,7 @@ export function BottomNav({ tab, setTab }) {
   const items = [
     { key: "inventory", label: "Inventory", icon: LayoutGrid },
     { key: "buyers", label: "Buyers", icon: User },
+    { key: "accounts", label: "Accounts", icon: Wallet },
     { key: "metrics", label: "Metrics", icon: BarChart3 },
   ];
   return (
