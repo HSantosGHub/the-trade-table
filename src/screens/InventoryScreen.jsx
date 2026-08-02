@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, Plus, Settings as SettingsIcon } from "lucide-react";
 import { supabase } from "../supabaseClient";
-import { Header, ShelfTag, daysSince } from "../components/Chrome";
+import { Header, ShelfTag, daysSince, formatDate } from "../components/Chrome";
 
 export default function InventoryScreen({ categories, onSelectItem, onAddItem, onOpenSettings }) {
   const [items, setItems] = useState([]);
@@ -171,7 +171,7 @@ export default function InventoryScreen({ categories, onSelectItem, onAddItem, o
                     </div>
                     {sale?.sale_date && (
                       <div className="text-[10px] font-mono text-muted mt-0.5">
-                        {new Date(sale.sale_date).toLocaleDateString()} · {sale.site}
+                        {formatDate(sale.sale_date)} · {sale.site}
                       </div>
                     )}
                   </div>
