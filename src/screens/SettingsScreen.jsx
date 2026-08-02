@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Pencil, Check } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { Header } from "../components/Chrome";
 
 export default function SettingsScreen({ categories, onBack, refreshCategories }) {
   const [newCategory, setNewCategory] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState("");
 
   async function toggle(cat) {
     await supabase.from("categories").update({ active: !cat.active }).eq("id", cat.id);
@@ -22,6 +24,20 @@ export default function SettingsScreen({ categories, onBack, refreshCategories }
     await refreshCategories();
   }
 
+  function startEditing(cat) {
+    setEditingId(cat.id);
+    setEditValue(cat.label);
+  }
+
+  async function saveRename(cat) {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== cat.label) {
+      await supabase.from("categories").update({ label: trimmed }).eq("id", cat.id);
+      await refreshCategories();
+    }
+    setEditingId(null);
+  }
+
   return (
     <div className="pb-24">
       <Header title="Settings" onBack={onBack} />
@@ -29,27 +45,52 @@ export default function SettingsScreen({ categories, onBack, refreshCategories }
         <div className="text-[11px] uppercase tracking-wide mb-1 font-mono text-muted">Category filters</div>
         <p className="text-xs mb-3 font-body text-muted">
           Choose which categories show up as filter chips in Inventory and Metrics. Turning one off
-          doesn't touch its items or sales history — it just tidies up the filter bar.
+          doesn't touch its items or sales history — it just tidies up the filter bar. Tap the pencil
+          to rename a category.
         </p>
         <div className="space-y-2">
           {categories.map((c) => (
             <div key={c.id} className="flex items-center justify-between rounded-lg px-3 py-2.5 bg-card border border-sand">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.swatch, opacity: c.active ? 1 : 0.35 }} />
-                <span className="font-body text-sm" style={{ color: c.active ? "#1F2A24" : "#9A9284" }}>
-                  {c.label}
-                </span>
+                {editingId === c.id ? (
+                  <input
+                    autoFocus
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && saveRename(c)}
+                    className="flex-1 min-w-0 px-2 py-1 rounded border border-rust bg-paper font-body text-sm text-ink"
+                  />
+                ) : (
+                  <span className="font-body text-sm truncate" style={{ color: c.active ? "#1F2A24" : "#9A9284" }}>
+                    {c.label}
+                  </span>
+                )}
               </div>
-              <button
-                onClick={() => toggle(c)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono"
-                style={{ background: c.active ? "#2F5233" : "#D9D0BA", color: c.active ? "#EDE6D6" : "#6B5D4F" }}
-              >
-                {c.active ? <Eye size={12} /> : <EyeOff size={12} />}
-                {c.active ? "Shown" : "Hidden"}
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                {editingId === c.id ? (
+                  <button onClick={() => saveRename(c)} className="p-1.5 rounded-full bg-rust text-paper">
+                    <Check size={12} />
+                  </button>
+                ) : (
+                  <button onClick={() => startEditing(c)} className="p-1.5 rounded-full border border-sand text-muted">
+                    <Pencil size={12} />
+                  </button>
+                )}
+                <button
+                  onClick={() => toggle(c)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono"
+                  style={{ background: c.active ? "#2F5233" : "#D9D0BA", color: c.active ? "#EDE6D6" : "#6B5D4F" }}
+                >
+                  {c.active ? <Eye size={12} /> : <EyeOff size={12} />}
+                  {c.active ? "Shown" : "Hidden"}
+                </button>
+              </div>
             </div>
           ))}
+          {categories.length === 0 && (
+            <p className="text-xs font-mono text-muted">No categories yet — add your first one below.</p>
+          )}
         </div>
 
         <div className="flex gap-2 mt-4">
