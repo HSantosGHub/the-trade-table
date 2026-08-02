@@ -14,7 +14,10 @@ export function Logo({ size = 30, color = "#F2E8DE" }) {
 
 export function Header({ title, onBack, right, showLogo }) {
   return (
-    <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-deeprust border-ink">
+    <div
+      className="sticky top-0 z-20 flex items-center justify-between px-4 pb-3 border-b bg-deeprust border-ink"
+      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+    >
       <div className="flex items-center gap-2.5">
         {onBack && (
           <button onClick={onBack} className="p-1 -ml-1 text-paper">
@@ -36,7 +39,10 @@ export function BottomNav({ tab, setTab }) {
     { key: "metrics", label: "Metrics", icon: BarChart3 },
   ];
   return (
-    <div className="fixed bottom-0 left-0 right-0 flex border-t bg-ink border-black">
+    <div
+      className="fixed bottom-0 left-0 right-0 flex border-t bg-ink border-black"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
       {items.map(({ key, label, icon: Icon }) => {
         const active = tab === key;
         return (
