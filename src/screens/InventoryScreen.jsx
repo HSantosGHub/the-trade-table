@@ -18,7 +18,8 @@ export default function InventoryScreen({ categories, onSelectItem, onAddItem, o
     setLoading(true);
     const { data, error } = await supabase
       .from("items")
-      .select("*, categories(*), listings(*), item_photos(*), sales(id, buyer_id, price, sale_date, site, buyers(name))")      .eq("status", statusView)
+      .select("*, categories(*), listings(*), item_photos(*), sales(id, buyer_id, price, sale_date, site, buyers(name))")
+      .eq("status", statusView)
       .order(statusView === "sold" ? "updated_at" : "created_at", { ascending: false });
     if (!error) setItems(data || []);
     setLoading(false);
@@ -112,7 +113,7 @@ export default function InventoryScreen({ categories, onSelectItem, onAddItem, o
             : "No items yet. Tap ADD to log your first piece of inventory."}
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 px-4">
+        <div className="grid grid-cols-2 landscape:grid-cols-3 gap-3 px-4">
           {filtered.map((item) => {
             const cat = item.categories;
             const margin = item.value - item.cost;
