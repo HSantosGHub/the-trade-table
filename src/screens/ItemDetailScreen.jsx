@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "../supabaseClient";
-import { Header, daysSince, stalenessInfo } from "../components/Chrome";
+import { Header, daysSince, stalenessInfo, formatDate } from "../components/Chrome";
 
 export default function ItemDetailScreen({ item, categories, onBack, onChanged }) {
   const [showSellForm, setShowSellForm] = useState(false);
@@ -210,7 +210,7 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
             </div>
             {sale?.sale_date && (
               <div className="font-mono text-[11px] text-sand">
-                {new Date(sale.sale_date).toLocaleDateString()} · sold via {sale.site}
+                {formatDate(sale.sale_date)} · sold via {sale.site}
               </div>
             )}
           </div>
