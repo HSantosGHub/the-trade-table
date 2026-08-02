@@ -19,6 +19,11 @@ export default function SettingsScreen({ categories, onBack, refreshCategories, 
   const [deleteCandidate, setDeleteCandidate] = useState(null); // category object
   const [deletingCategory, setDeletingCategory] = useState(false);
 
+  const [checkingSiteDeleteId, setCheckingSiteDeleteId] = useState(null);
+  const [blockedSiteDelete, setBlockedSiteDelete] = useState(null); // { id, count }
+  const [deleteSiteCandidate, setDeleteSiteCandidate] = useState(null); // site object
+  const [deletingSite, setDeletingSite] = useState(false);
+
   async function toggleCategory(cat) {
     await supabase.from("categories").update({ active: !cat.active }).eq("id", cat.id);
     await refreshCategories();
@@ -70,6 +75,31 @@ export default function SettingsScreen({ categories, onBack, refreshCategories, 
     setDeletingCategory(false);
     setDeleteCandidate(null);
     await refreshCategories();
+  }
+
+  async function handleDeleteSiteClick(site) {
+    setBlockedSiteDelete(null);
+    setCheckingSiteDeleteId(site.id);
+    const [{ count: listingCount }, { count: salesCount }] = await Promise.all([
+      supabase.from("listings").select("id", { count: "exact", head: true }).eq("site", site.name),
+      supabase.from("sales").select("id", { count: "exact", head: true }).eq("site", site.name),
+    ]);
+    const total = (listingCount || 0) + (salesCount || 0);
+    setCheckingSiteDeleteId(null);
+    if (total > 0) {
+      setBlockedSiteDelete({ id: site.id, count: total });
+    } else {
+      setDeleteSiteCandidate(site);
+    }
+  }
+
+  async function confirmDeleteSite() {
+    if (!deleteSiteCandidate) return;
+    setDeletingSite(true);
+    await supabase.from("sites").delete().eq("id", deleteSiteCandidate.id);
+    setDeletingSite(false);
+    setDeleteSiteCandidate(null);
+    await refreshSites();
   }
 
   async function toggleSite(site) {
@@ -191,45 +221,63 @@ export default function SettingsScreen({ categories, onBack, refreshCategories, 
         <div className="text-[11px] uppercase tracking-wide mb-1 font-mono text-muted">Listing sites</div>
         <p className="text-xs mb-3 font-body text-muted">
           Choose which sites show up as options when listing an item. Hiding one doesn't touch past
-          listings — it just keeps the picker from getting cluttered with places you don't use.
+          listings — it just keeps the picker from getting cluttered with places you don't use. The
+          trash icon permanently deletes a site that's never actually been used.
         </p>
         <div className="space-y-2">
           {sites.map((s) => (
-            <div key={s.id} className="flex items-center justify-between rounded-lg px-3 py-2.5 bg-card border border-sand">
-              <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                {editingSiteId === s.id ? (
-                  <input
-                    autoFocus
-                    value={editSiteValue}
-                    onChange={(e) => setEditSiteValue(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && saveSiteRename(s)}
-                    className="flex-1 min-w-0 px-2 py-1 rounded border border-rust bg-paper font-body text-sm text-ink"
-                  />
-                ) : (
-                  <span className="font-body text-sm truncate" style={{ color: s.active ? "#1F2A24" : "#9A9284" }}>
-                    {s.name}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                {editingSiteId === s.id ? (
-                  <button onClick={() => saveSiteRename(s)} className="p-1.5 rounded-full bg-rust text-paper">
-                    <Check size={12} />
+            <div key={s.id}>
+              <div className="flex items-center justify-between rounded-lg px-3 py-2.5 bg-card border border-sand">
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  {editingSiteId === s.id ? (
+                    <input
+                      autoFocus
+                      value={editSiteValue}
+                      onChange={(e) => setEditSiteValue(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveSiteRename(s)}
+                      className="flex-1 min-w-0 px-2 py-1 rounded border border-rust bg-paper font-body text-sm text-ink"
+                    />
+                  ) : (
+                    <span className="font-body text-sm truncate" style={{ color: s.active ? "#1F2A24" : "#9A9284" }}>
+                      {s.name}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  {editingSiteId === s.id ? (
+                    <button onClick={() => saveSiteRename(s)} className="p-1.5 rounded-full bg-rust text-paper">
+                      <Check size={12} />
+                    </button>
+                  ) : (
+                    <>
+                      <button onClick={() => startEditingSite(s)} className="p-1.5 rounded-full border border-sand text-muted">
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSiteClick(s)}
+                        disabled={checkingSiteDeleteId === s.id}
+                        className="p-1.5 rounded-full border border-sand text-muted disabled:opacity-50"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => toggleSite(s)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono"
+                    style={{ background: s.active ? "#2F5233" : "#D9D0BA", color: s.active ? "#EDE6D6" : "#6B5D4F" }}
+                  >
+                    {s.active ? <Eye size={12} /> : <EyeOff size={12} />}
+                    {s.active ? "Shown" : "Hidden"}
                   </button>
-                ) : (
-                  <button onClick={() => startEditingSite(s)} className="p-1.5 rounded-full border border-sand text-muted">
-                    <Pencil size={12} />
-                  </button>
-                )}
-                <button
-                  onClick={() => toggleSite(s)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono"
-                  style={{ background: s.active ? "#2F5233" : "#D9D0BA", color: s.active ? "#EDE6D6" : "#6B5D4F" }}
-                >
-                  {s.active ? <Eye size={12} /> : <EyeOff size={12} />}
-                  {s.active ? "Shown" : "Hidden"}
-                </button>
+                </div>
               </div>
+              {blockedSiteDelete?.id === s.id && (
+                <p className="text-[11px] font-mono text-deeprust mt-1 px-1">
+                  Can't delete — {blockedSiteDelete.count} listing{blockedSiteDelete.count === 1 ? "" : "s"} or sale{blockedSiteDelete.count === 1 ? "" : "s"} reference this site.
+                  Hide it instead.
+                </p>
+              )}
             </div>
           ))}
           {sites.length === 0 && (
@@ -275,6 +323,32 @@ export default function SettingsScreen({ categories, onBack, refreshCategories, 
                 className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold bg-deeprust text-paper disabled:opacity-60"
               >
                 {deletingCategory ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteSiteCandidate && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-6">
+          <div className="w-full max-w-xs rounded-lg bg-card p-4 border border-sand">
+            <h3 className="font-display text-base text-ink mb-1">Delete "{deleteSiteCandidate.name}"?</h3>
+            <p className="text-xs font-body text-muted mb-4">
+              This action cannot be undone. This site isn't referenced by any listing or sale, so it's
+              safe to remove permanently.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteSiteCandidate(null)}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold border border-sand text-muted"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteSite}
+                disabled={deletingSite}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold bg-deeprust text-paper disabled:opacity-60"
+              >
+                {deletingSite ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>
