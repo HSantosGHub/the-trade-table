@@ -90,7 +90,13 @@ export default function App() {
       />
     );
   } else if (selectedBuyer) {
-    screen = <BuyerDetailScreen buyer={selectedBuyer} onBack={() => setSelectedBuyer(null)} />;
+    screen = (
+      <BuyerDetailScreen
+        buyer={selectedBuyer}
+        onBack={() => setSelectedBuyer(null)}
+        onChanged={() => setRefreshKey((k) => k + 1)}
+      />
+    );
   } else if (tab === "inventory") {
     screen = (
       <InventoryScreen
@@ -111,7 +117,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex justify-center bg-[#5C4033] font-body">
-      <div className="w-full max-w-sm min-h-screen relative bg-paper">
+      <div className="w-full max-w-sm landscape:max-w-2xl min-h-screen relative bg-paper">
         {screen}
         {showNav && <BottomNav tab={tab} setTab={setTab} />}
       </div>
