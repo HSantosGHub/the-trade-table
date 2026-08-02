@@ -29,6 +29,10 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const [showPaybackPrompt, setShowPaybackPrompt] = useState(false);
+  const [paybackAmount, setPaybackAmount] = useState("");
+  const [submittingPayback, setSubmittingPayback] = useState(false);
+
   const cat = item.categories;
   const margin = (item.value ?? 0) - (item.cost ?? 0);
   const days = daysSince(item.acquired_date);
@@ -73,6 +77,33 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
     await supabase.from("listings").update({ active: false }).eq("item_id", item.id);
 
     setSaving(false);
+
+    if (item.funding_account_id && item.accounts?.suggest_payback) {
+      setPaybackAmount(String(item.cost ?? ""));
+      setShowPaybackPrompt(true);
+    } else {
+      onChanged();
+      onBack();
+    }
+  }
+
+  async function confirmPayback() {
+    setSubmittingPayback(true);
+    await supabase.from("account_transactions").insert({
+      account_id: item.funding_account_id,
+      type: "deposit",
+      amount: Number(paybackAmount) || 0,
+      item_id: item.id,
+      note: `From sale of ${item.name}`,
+    });
+    setSubmittingPayback(false);
+    setShowPaybackPrompt(false);
+    onChanged();
+    onBack();
+  }
+
+  function skipPayback() {
+    setShowPaybackPrompt(false);
     onChanged();
     onBack();
   }
@@ -449,6 +480,39 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
                 className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold bg-deeprust text-paper disabled:opacity-60"
               >
                 {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPaybackPrompt && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-6">
+          <div className="w-full max-w-xs rounded-lg bg-card p-4 border border-sand">
+            <h3 className="font-display text-base text-ink mb-1">Pay back {item.accounts?.name}?</h3>
+            <p className="text-xs font-body text-muted mb-3">
+              This item was funded from {item.accounts?.name}. Want to log a payback now?
+            </p>
+            <input
+              type="number"
+              step="0.01"
+              value={paybackAmount}
+              onChange={(e) => setPaybackAmount(e.target.value)}
+              className="w-full px-3 py-2 rounded border border-sand bg-paper font-mono text-sm text-ink mb-3"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={skipPayback}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold border border-sand text-muted"
+              >
+                Not now
+              </button>
+              <button
+                onClick={confirmPayback}
+                disabled={submittingPayback}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold bg-rust text-[#1F2A24] disabled:opacity-60"
+              >
+                {submittingPayback ? "Saving…" : "Log payback"}
               </button>
             </div>
           </div>
