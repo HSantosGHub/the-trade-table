@@ -99,3 +99,12 @@ export function daysSince(dateStr) {
   const now = new Date();
   return Math.max(0, Math.floor((now - then) / (1000 * 60 * 60 * 24)));
 }
+
+// Formats a "YYYY-MM-DD" date string using its literal year/month/day,
+// instead of letting JS parse it as UTC midnight and shift it a day
+// backward in timezones behind UTC.
+export function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString();
+}
