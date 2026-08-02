@@ -13,7 +13,7 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
   const [selectedSites, setSelectedSites] = useState([]);
   const [newSite, setNewSite] = useState("");
   const [addingSite, setAddingSite] = useState(false);
-  const [fundingAccountId, setFundingAccountId] = useState("");
+  const [fundingRows, setFundingRows] = useState([]); // [{ accountId, amount }]
   const [newAccount, setNewAccount] = useState("");
   const [addingAccount, setAddingAccount] = useState(false);
   const [file, setFile] = useState(null);
@@ -24,6 +24,20 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
     setSelectedSites((prev) => (prev.includes(siteName) ? prev.filter((s) => s !== siteName) : [...prev, siteName]));
   }
 
+  function addFundingRow() {
+    setFundingRows((prev) => [...prev, { accountId: accounts[0]?.id || "", amount: "" }]);
+  }
+
+  function updateFundingRow(index, field, val) {
+    setFundingRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: val } : r)));
+  }
+
+  function removeFundingRow(index) {
+    setFundingRows((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  const fundingTotal = fundingRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
   async function handleCreateAccount() {
     if (!newAccount.trim()) return;
     const { data, error } = await supabase
@@ -33,7 +47,7 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
       .single();
     if (!error) {
       await refreshAccounts();
-      setFundingAccountId(data.id);
+      setFundingRows((prev) => [...prev, { accountId: data.id, amount: "" }]);
       setNewAccount("");
       setAddingAccount(false);
     } else {
@@ -88,7 +102,6 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
         category_id: categoryId || null,
         cost: Number(cost) || 0,
         value: Number(value) || 0,
-        funding_account_id: fundingAccountId || null,
       })
       .select()
       .single();
@@ -99,13 +112,16 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
       return;
     }
 
-    if (fundingAccountId && Number(cost) > 0) {
-      await supabase.from("account_transactions").insert({
-        account_id: fundingAccountId,
-        type: "withdrawal",
-        amount: Number(cost),
-        item_id: item.id,
-      });
+    const validFundingRows = fundingRows.filter((r) => r.accountId && Number(r.amount) > 0);
+    if (validFundingRows.length > 0) {
+      await supabase.from("account_transactions").insert(
+        validFundingRows.map((r) => ({
+          account_id: r.accountId,
+          type: "withdrawal",
+          amount: Number(r.amount),
+          item_id: item.id,
+        }))
+      );
     }
 
     if (selectedSites.length > 0) {
@@ -232,54 +248,92 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
 
         <div>
           <label className="text-[11px] uppercase tracking-wide font-mono text-muted">Funded from (optional)</label>
-          {!addingAccount ? (
-            <div className="flex gap-2 mt-1">
-              <select
-                value={fundingAccountId}
-                onChange={(e) => setFundingAccountId(e.target.value)}
-                className="flex-1 px-3 py-2 rounded border border-sand bg-card font-body text-sm text-ink"
+          <p className="text-[11px] font-mono text-muted mt-0.5 mb-2">
+            Split the cost across accounts if it came from more than one.
+          </p>
+
+          <div className="space-y-2">
+            {fundingRows.map((row, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <select
+                  value={row.accountId}
+                  onChange={(e) => updateFundingRow(i, "accountId", e.target.value)}
+                  className="flex-1 px-3 py-2 rounded border border-sand bg-card font-body text-sm text-ink"
+                >
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={row.amount}
+                  onChange={(e) => updateFundingRow(i, "amount", e.target.value)}
+                  placeholder="$"
+                  className="w-24 px-3 py-2 rounded border border-sand bg-card font-mono text-sm text-ink"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeFundingRow(i)}
+                  className="px-2.5 py-2 rounded border border-sand text-muted text-xs font-mono"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 mt-2">
+            {accounts.length > 0 && (
+              <button
+                type="button"
+                onClick={addFundingRow}
+                className="px-3 py-2 rounded border border-rust text-rust text-xs font-mono"
               >
-                <option value="">None</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
+                + Add funding source
+              </button>
+            )}
+            {!addingAccount ? (
               <button
                 type="button"
                 onClick={() => setAddingAccount(true)}
-                className="px-3 py-2 rounded border border-rust text-rust text-xs font-mono"
+                className="px-3 py-2 rounded border border-sand text-muted text-xs font-mono"
               >
-                + New
+                + New account
               </button>
-            </div>
-          ) : (
-            <div className="flex gap-2 mt-1">
-              <input
-                value={newAccount}
-                onChange={(e) => setNewAccount(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleCreateAccount();
-                  }
-                }}
-                placeholder="Account name"
-                className="flex-1 px-3 py-2 rounded border border-sand bg-card font-body text-sm text-ink"
-              />
-              <button
-                type="button"
-                onClick={handleCreateAccount}
-                className="px-3 py-2 rounded bg-deeprust text-paper text-xs font-mono"
-              >
-                Save
-              </button>
-            </div>
-          )}
-          {fundingAccountId && Number(cost) > 0 && (
-            <p className="text-[11px] font-mono text-muted mt-1">
-              Logs a ${Number(cost).toFixed(2)} withdrawal to this account.
+            ) : (
+              <div className="flex gap-2 flex-1">
+                <input
+                  value={newAccount}
+                  onChange={(e) => setNewAccount(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateAccount();
+                    }
+                  }}
+                  placeholder="Account name"
+                  className="flex-1 px-3 py-2 rounded border border-sand bg-card font-body text-sm text-ink"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateAccount}
+                  className="px-3 py-2 rounded bg-deeprust text-paper text-xs font-mono"
+                >
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+
+          {fundingRows.length > 0 && (
+            <p className="text-[11px] font-mono text-muted mt-2">
+              Funded so far: ${fundingTotal.toFixed(2)}
+              {Number(cost) > 0 && fundingTotal !== Number(cost) && (
+                <span> — item cost is ${Number(cost).toFixed(2)}</span>
+              )}
             </p>
           )}
         </div>
