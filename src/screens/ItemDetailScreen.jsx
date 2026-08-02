@@ -30,7 +30,7 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
   const [deleting, setDeleting] = useState(false);
 
   const [showPaybackPrompt, setShowPaybackPrompt] = useState(false);
-  const [paybackAmount, setPaybackAmount] = useState("");
+  const [paybackRows, setPaybackRows] = useState([]); // [{ accountId, accountName, amount, checked }]
   const [submittingPayback, setSubmittingPayback] = useState(false);
 
   const cat = item.categories;
@@ -40,6 +40,7 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
   const photo = item.item_photos?.[0]?.url;
   const isSold = item.status === "sold";
   const sale = item.sales?.[0];
+  const fundingTxns = (item.account_transactions || []).filter((t) => t.type === "withdrawal");
 
   async function handleMarkSold(e) {
     e.preventDefault();
@@ -78,8 +79,16 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
 
     setSaving(false);
 
-    if (item.funding_account_id && item.accounts?.suggest_payback) {
-      setPaybackAmount(String(item.cost ?? ""));
+    const suggestible = fundingTxns.filter((t) => t.accounts?.suggest_payback);
+    if (fundingTxns.length > 0 && suggestible.length > 0) {
+      setPaybackRows(
+        fundingTxns.map((t) => ({
+          accountId: t.account_id,
+          accountName: t.accounts?.name || "Account",
+          amount: String(t.amount),
+          checked: !!t.accounts?.suggest_payback,
+        }))
+      );
       setShowPaybackPrompt(true);
     } else {
       onChanged();
@@ -87,15 +96,24 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
     }
   }
 
+  function updatePaybackRow(index, field, val) {
+    setPaybackRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: val } : r)));
+  }
+
   async function confirmPayback() {
     setSubmittingPayback(true);
-    await supabase.from("account_transactions").insert({
-      account_id: item.funding_account_id,
-      type: "deposit",
-      amount: Number(paybackAmount) || 0,
-      item_id: item.id,
-      note: `From sale of ${item.name}`,
-    });
+    const toInsert = paybackRows
+      .filter((r) => r.checked && Number(r.amount) > 0)
+      .map((r) => ({
+        account_id: r.accountId,
+        type: "deposit",
+        amount: Number(r.amount),
+        item_id: item.id,
+        note: `From sale of ${item.name}`,
+      }));
+    if (toInsert.length > 0) {
+      await supabase.from("account_transactions").insert(toInsert);
+    }
     setSubmittingPayback(false);
     setShowPaybackPrompt(false);
     onChanged();
@@ -214,6 +232,20 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
                 </div>
               </div>
             </div>
+
+            {fundingTxns.length > 0 && (
+              <div className="rounded-lg p-3 mb-4 bg-card border border-sand">
+                <div className="text-[10px] uppercase font-mono text-muted mb-1.5">Funded from</div>
+                <div className="space-y-1">
+                  {fundingTxns.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between">
+                      <span className="font-body text-xs text-ink">{t.accounts?.name || "Account"}</span>
+                      <span className="font-mono text-xs text-muted">${Number(t.amount).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="rounded-lg border border-rust bg-card p-3 space-y-2.5 mb-4">
@@ -489,17 +521,30 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
       {showPaybackPrompt && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-6">
           <div className="w-full max-w-xs rounded-lg bg-card p-4 border border-sand">
-            <h3 className="font-display text-base text-ink mb-1">Pay back {item.accounts?.name}?</h3>
+            <h3 className="font-display text-base text-ink mb-1">Pay back funding?</h3>
             <p className="text-xs font-body text-muted mb-3">
-              This item was funded from {item.accounts?.name}. Want to log a payback now?
+              This item was funded from more than one place. Choose what to pay back now.
             </p>
-            <input
-              type="number"
-              step="0.01"
-              value={paybackAmount}
-              onChange={(e) => setPaybackAmount(e.target.value)}
-              className="w-full px-3 py-2 rounded border border-sand bg-paper font-mono text-sm text-ink mb-3"
-            />
+            <div className="space-y-2 mb-3">
+              {paybackRows.map((row, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-lg border border-sand bg-paper px-2.5 py-2">
+                  <input
+                    type="checkbox"
+                    checked={row.checked}
+                    onChange={(e) => updatePaybackRow(i, "checked", e.target.checked)}
+                    className="w-4 h-4 accent-[#B54A2C] shrink-0"
+                  />
+                  <span className="flex-1 text-xs font-body text-ink truncate">{row.accountName}</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={row.amount}
+                    onChange={(e) => updatePaybackRow(i, "amount", e.target.value)}
+                    className="w-20 px-2 py-1 rounded border border-sand bg-card font-mono text-xs text-ink"
+                  />
+                </div>
+              ))}
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={skipPayback}
