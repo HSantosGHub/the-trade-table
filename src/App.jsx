@@ -9,6 +9,8 @@ import BuyersScreen from "./screens/BuyersScreen";
 import BuyerDetailScreen from "./screens/BuyerDetailScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import MetricsScreen from "./screens/MetricsScreen";
+import AccountsScreen from "./screens/AccountsScreen";
+import AccountDetailScreen from "./screens/AccountDetailScreen";
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = not checked yet
@@ -16,8 +18,10 @@ export default function App() {
   const [view, setView] = useState("list"); // list | add | detail | settings
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedBuyer, setSelectedBuyer] = useState(null);
+  const [selectedAccount, setSelectedAccount] = useState(null);
   const [categories, setCategories] = useState([]);
   const [sites, setSites] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -30,6 +34,7 @@ export default function App() {
     if (session) {
       loadCategories();
       loadSites();
+      loadAccounts();
     }
   }, [session]);
 
@@ -41,6 +46,11 @@ export default function App() {
   async function loadSites() {
     const { data } = await supabase.from("sites").select("*").order("name");
     setSites(data || []);
+  }
+
+  async function loadAccounts() {
+    const { data } = await supabase.from("accounts").select("*").order("name");
+    setAccounts(data || []);
   }
 
   function resetToList() {
@@ -66,6 +76,8 @@ export default function App() {
         refreshCategories={loadCategories}
         sites={sites}
         refreshSites={loadSites}
+        accounts={accounts}
+        refreshAccounts={loadAccounts}
         onDone={resetToList}
         onBack={() => setView("list")}
       />
@@ -97,6 +109,17 @@ export default function App() {
         onChanged={() => setRefreshKey((k) => k + 1)}
       />
     );
+  } else if (selectedAccount) {
+    screen = (
+      <AccountDetailScreen
+        account={selectedAccount}
+        onBack={() => setSelectedAccount(null)}
+        onChanged={() => {
+          setRefreshKey((k) => k + 1);
+          loadAccounts();
+        }}
+      />
+    );
   } else if (tab === "inventory") {
     screen = (
       <InventoryScreen
@@ -109,11 +132,13 @@ export default function App() {
     );
   } else if (tab === "buyers") {
     screen = <BuyersScreen key={refreshKey} onSelectBuyer={setSelectedBuyer} />;
+  } else if (tab === "accounts") {
+    screen = <AccountsScreen key={refreshKey} onSelectAccount={setSelectedAccount} />;
   } else {
     screen = <MetricsScreen key={refreshKey} />;
   }
 
-  const showNav = view === "list" && !selectedItem && !selectedBuyer;
+  const showNav = view === "list" && !selectedItem && !selectedBuyer && !selectedAccount;
 
   return (
     <div className="min-h-screen flex justify-center bg-[#5C4033] font-body">
