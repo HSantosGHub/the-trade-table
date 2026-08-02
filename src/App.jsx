@@ -133,7 +133,7 @@ export default function App() {
   } else if (tab === "buyers") {
     screen = <BuyersScreen key={refreshKey} onSelectBuyer={setSelectedBuyer} />;
   } else if (tab === "accounts") {
-    screen = <AccountsScreen key={refreshKey} onSelectAccount={setSelectedAccount} />;
+    screen = <AccountsScreen key={refreshKey} onSelectAccount={setSelectedAccount} refreshAccounts={loadAccounts} />;
   } else {
     screen = <MetricsScreen key={refreshKey} />;
   }
