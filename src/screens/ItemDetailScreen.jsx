@@ -19,6 +19,13 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
   const [editValue, setEditValue] = useState(item.value);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  const [isEditingSale, setIsEditingSale] = useState(false);
+  const [editBuyerName, setEditBuyerName] = useState(item.sales?.[0]?.buyers?.name || "");
+  const [editSalePrice, setEditSalePrice] = useState(item.sales?.[0]?.price ?? "");
+  const [editSaleSite, setEditSaleSite] = useState(item.sales?.[0]?.site || "");
+  const [editSaleDate, setEditSaleDate] = useState(item.sales?.[0]?.sale_date || "");
+  const [savingSaleEdit, setSavingSaleEdit] = useState(false);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -82,6 +89,47 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
       })
       .eq("id", item.id);
     setSavingEdit(false);
+    onChanged();
+    onBack();
+  }
+
+  async function handleSaveSaleEdit() {
+    if (!sale) return;
+    setSavingSaleEdit(true);
+
+    let buyerId = sale.buyer_id || null;
+    const trimmedName = editBuyerName.trim();
+    if (trimmedName && trimmedName !== sale.buyers?.name) {
+      const { data: existing } = await supabase
+        .from("buyers")
+        .select("id")
+        .ilike("name", trimmedName)
+        .maybeSingle();
+
+      if (existing) {
+        buyerId = existing.id;
+      } else {
+        const { data: created } = await supabase
+          .from("buyers")
+          .insert({ name: trimmedName })
+          .select()
+          .single();
+        buyerId = created?.id || null;
+      }
+    }
+
+    await supabase
+      .from("sales")
+      .update({
+        buyer_id: buyerId,
+        price: Number(editSalePrice) || 0,
+        site: editSaleSite,
+        sale_date: editSaleDate,
+      })
+      .eq("id", sale.id);
+
+    setSavingSaleEdit(false);
+    setIsEditingSale(false);
     onChanged();
     onBack();
   }
@@ -201,9 +249,17 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
           </div>
         )}
 
-        {isSold && (
+        {isSold && !isEditingSale && (
           <div className="rounded-lg p-3 mb-4 bg-deeprust">
-            <div className="text-[10px] uppercase font-mono text-sand mb-2 opacity-80">Sold</div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] uppercase font-mono text-sand opacity-80">Sold</div>
+              <button
+                onClick={() => setIsEditingSale(true)}
+                className="p-1 rounded-full border border-sand text-sand opacity-80"
+              >
+                <Pencil size={11} />
+              </button>
+            </div>
             <div className="flex items-baseline justify-between mb-1">
               <span className="font-body text-sm text-paper">{sale?.buyers?.name || "Unknown buyer"}</span>
               <span className="font-mono text-lg font-bold text-paper">${sale?.price ?? "—"}</span>
@@ -213,6 +269,64 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
                 {formatDate(sale.sale_date)} · sold via {sale.site}
               </div>
             )}
+          </div>
+        )}
+
+        {isSold && isEditingSale && (
+          <div className="rounded-lg border border-rust bg-card p-3 space-y-2.5 mb-4">
+            <div className="text-[11px] uppercase tracking-wide font-mono text-muted">Edit sale</div>
+            <div>
+              <label className="text-[10px] uppercase font-mono text-muted">Buyer name</label>
+              <input
+                value={editBuyerName}
+                onChange={(e) => setEditBuyerName(e.target.value)}
+                className="w-full mt-1 px-3 py-2 rounded border border-sand bg-paper font-body text-sm text-ink"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] uppercase font-mono text-muted">Sale price ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editSalePrice}
+                  onChange={(e) => setEditSalePrice(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 rounded border border-sand bg-paper font-mono text-sm text-ink"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-mono text-muted">Sold via</label>
+                <input
+                  value={editSaleSite}
+                  onChange={(e) => setEditSaleSite(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 rounded border border-sand bg-paper font-mono text-sm text-ink"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase font-mono text-muted">Sale date</label>
+              <input
+                type="date"
+                value={editSaleDate}
+                onChange={(e) => setEditSaleDate(e.target.value)}
+                className="w-full mt-1 px-3 py-2 rounded border border-sand bg-paper font-mono text-sm text-ink"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setIsEditingSale(false)}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold border border-sand text-muted"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveSaleEdit}
+                disabled={savingSaleEdit}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold bg-rust text-[#1F2A24] disabled:opacity-60"
+              >
+                {savingSaleEdit ? "Saving…" : "Save changes"}
+              </button>
+            </div>
           </div>
         )}
 
