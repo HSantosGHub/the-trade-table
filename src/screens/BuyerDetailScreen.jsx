@@ -1,21 +1,100 @@
-import React from "react";
+import React, { useState } from "react";
+import { Pencil } from "lucide-react";
+import { supabase } from "../supabaseClient";
 import { Header, formatDate } from "../components/Chrome";
 
-export default function BuyerDetailScreen({ buyer, onBack }) {
+export default function BuyerDetailScreen({ buyer, onBack, onChanged }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(buyer.name);
+  const [editEmail, setEditEmail] = useState(buyer.email || "");
+  const [editPhone, setEditPhone] = useState(buyer.phone || "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!editName.trim()) return;
+    setSaving(true);
+    await supabase
+      .from("buyers")
+      .update({
+        name: editName.trim(),
+        email: editEmail.trim() || null,
+        phone: editPhone.trim() || null,
+      })
+      .eq("id", buyer.id);
+    setSaving(false);
+    onChanged();
+    onBack();
+  }
+
   return (
     <div className="pb-24">
-      <Header title="Buyer" onBack={onBack} />
+      <Header
+        title="Buyer"
+        onBack={onBack}
+        right={
+          !isEditing && (
+            <button onClick={() => setIsEditing(true)} className="p-1.5 text-paper">
+              <Pencil size={18} />
+            </button>
+          )
+        }
+      />
       <div className="p-4">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold shrink-0 bg-deeprust text-paper font-mono">
-            {buyer.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+        {!isEditing ? (
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold shrink-0 bg-deeprust text-paper font-mono">
+              {buyer.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+            </div>
+            <div>
+              <h2 className="font-display text-xl text-ink">{buyer.name}</h2>
+              {buyer.email && <div className="font-mono text-[11px] text-muted">{buyer.email}</div>}
+              {buyer.phone && <div className="font-mono text-[11px] text-muted">{buyer.phone}</div>}
+            </div>
           </div>
-          <div>
-            <h2 className="font-display text-xl text-ink">{buyer.name}</h2>
-            {buyer.email && <div className="font-mono text-[11px] text-muted">{buyer.email}</div>}
-            {buyer.phone && <div className="font-mono text-[11px] text-muted">{buyer.phone}</div>}
+        ) : (
+          <div className="rounded-lg border border-rust bg-card p-3 space-y-2.5 mb-4">
+            <div className="text-[11px] uppercase tracking-wide font-mono text-muted">Edit buyer</div>
+            <div>
+              <label className="text-[10px] uppercase font-mono text-muted">Name</label>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full mt-1 px-3 py-2 rounded border border-sand bg-paper font-body text-sm text-ink"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase font-mono text-muted">Email</label>
+              <input
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                className="w-full mt-1 px-3 py-2 rounded border border-sand bg-paper font-body text-sm text-ink"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase font-mono text-muted">Phone</label>
+              <input
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                className="w-full mt-1 px-3 py-2 rounded border border-sand bg-paper font-body text-sm text-ink"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setIsEditing(false)}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold border border-sand text-muted"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold bg-rust text-[#1F2A24] disabled:opacity-60"
+              >
+                {saving ? "Saving…" : "Save changes"}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="text-[11px] uppercase tracking-wide mb-2 font-mono text-muted">Purchase history</div>
         <div className="space-y-2">
