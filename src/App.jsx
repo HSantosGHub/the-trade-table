@@ -17,6 +17,7 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedBuyer, setSelectedBuyer] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [sites, setSites] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -26,12 +27,20 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (session) loadCategories();
+    if (session) {
+      loadCategories();
+      loadSites();
+    }
   }, [session]);
 
   async function loadCategories() {
     const { data } = await supabase.from("categories").select("*").order("label");
     setCategories(data || []);
+  }
+
+  async function loadSites() {
+    const { data } = await supabase.from("sites").select("*").order("name");
+    setSites(data || []);
   }
 
   function resetToList() {
@@ -55,6 +64,8 @@ export default function App() {
       <AddItemScreen
         categories={categories}
         refreshCategories={loadCategories}
+        sites={sites}
+        refreshSites={loadSites}
         onDone={resetToList}
         onBack={() => setView("list")}
       />
@@ -64,6 +75,8 @@ export default function App() {
       <SettingsScreen
         categories={categories}
         refreshCategories={loadCategories}
+        sites={sites}
+        refreshSites={loadSites}
         onBack={() => setView("list")}
       />
     );
@@ -71,6 +84,7 @@ export default function App() {
     screen = (
       <ItemDetailScreen
         item={selectedItem}
+        categories={categories}
         onBack={() => setSelectedItem(null)}
         onChanged={() => setRefreshKey((k) => k + 1)}
       />
