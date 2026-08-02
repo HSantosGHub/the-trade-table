@@ -27,6 +27,8 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
   const days = daysSince(item.acquired_date);
   const s = stalenessInfo(days);
   const photo = item.item_photos?.[0]?.url;
+  const isSold = item.status === "sold";
+  const sale = item.sales?.[0];
 
   async function handleMarkSold(e) {
     e.preventDefault();
@@ -199,87 +201,108 @@ export default function ItemDetailScreen({ item, categories, onBack, onChanged }
           </div>
         )}
 
-        <div className="rounded-lg p-3 mb-4 flex items-center justify-between" style={{ background: s.bg, opacity: 0.9 }}>
-          <div className="font-mono text-xs" style={{ color: s.fg }}>
-            On the shelf {days} days
-          </div>
-          <div className="font-mono text-[11px] font-bold" style={{ color: s.fg }}>
-            {s.label.toUpperCase()}
-          </div>
-        </div>
-
-        <div className="text-[11px] uppercase tracking-wide mb-2 font-mono text-muted">Listed on</div>
-        <div className="space-y-2 mb-5">
-          {(item.listings || []).filter((l) => l.active).map((l) => (
-            <div key={l.id} className="flex items-center justify-between rounded-lg px-3 py-2.5 bg-card border border-sand">
-              <span className="font-body text-sm text-ink">{l.site}</span>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[11px] text-muted">
-                  {daysSince(l.posted_date)}d listed
-                </span>
-                {l.url && <ExternalLink size={13} className="text-muted" />}
+        {isSold && (
+          <div className="rounded-lg p-3 mb-4 bg-deeprust">
+            <div className="text-[10px] uppercase font-mono text-sand mb-2 opacity-80">Sold</div>
+            <div className="flex items-baseline justify-between mb-1">
+              <span className="font-body text-sm text-paper">{sale?.buyers?.name || "Unknown buyer"}</span>
+              <span className="font-mono text-lg font-bold text-paper">${sale?.price ?? "—"}</span>
+            </div>
+            {sale?.sale_date && (
+              <div className="font-mono text-[11px] text-sand">
+                {new Date(sale.sale_date).toLocaleDateString()} · sold via {sale.site}
               </div>
-            </div>
-          ))}
-          {(item.listings || []).filter((l) => l.active).length === 0 && (
-            <p className="text-xs font-mono text-muted">Not currently listed anywhere.</p>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        {!showSellForm ? (
-          <button
-            onClick={() => setShowSellForm(true)}
-            className="w-full py-2.5 rounded-lg font-mono text-xs font-semibold bg-deeprust text-paper"
-          >
-            Mark as sold
-          </button>
-        ) : (
-          <form onSubmit={handleMarkSold} className="rounded-lg border border-sand bg-card p-3 space-y-2.5">
-            <div className="text-[11px] uppercase tracking-wide font-mono text-muted">Record the sale</div>
-            <input
-              value={buyerName}
-              onChange={(e) => setBuyerName(e.target.value)}
-              placeholder="Buyer name"
-              className="w-full px-3 py-2 rounded border border-sand bg-paper font-body text-sm text-ink"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={buyerEmail}
-                onChange={(e) => setBuyerEmail(e.target.value)}
-                placeholder="Email (optional)"
-                className="px-3 py-2 rounded border border-sand bg-paper font-body text-xs text-ink"
-              />
-              <input
-                value={buyerPhone}
-                onChange={(e) => setBuyerPhone(e.target.value)}
-                placeholder="Phone (optional)"
-                className="px-3 py-2 rounded border border-sand bg-paper font-body text-xs text-ink"
-              />
+        {!isSold && (
+          <div className="rounded-lg p-3 mb-4 flex items-center justify-between" style={{ background: s.bg, opacity: 0.9 }}>
+            <div className="font-mono text-xs" style={{ color: s.fg }}>
+              On the shelf {days} days
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="number"
-                step="0.01"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="Sale price"
-                className="px-3 py-2 rounded border border-sand bg-paper font-mono text-sm text-ink"
-              />
-              <input
-                value={site}
-                onChange={(e) => setSite(e.target.value)}
-                placeholder="Sold via"
-                className="px-3 py-2 rounded border border-sand bg-paper font-mono text-sm text-ink"
-              />
+            <div className="font-mono text-[11px] font-bold" style={{ color: s.fg }}>
+              {s.label.toUpperCase()}
             </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full py-2 rounded-lg font-mono text-xs font-semibold bg-rust text-[#1F2A24] disabled:opacity-60"
-            >
-              {saving ? "Saving…" : "Confirm sale"}
-            </button>
-          </form>
+          </div>
+        )}
+
+        {!isSold && (
+          <>
+            <div className="text-[11px] uppercase tracking-wide mb-2 font-mono text-muted">Listed on</div>
+            <div className="space-y-2 mb-5">
+              {(item.listings || []).filter((l) => l.active).map((l) => (
+                <div key={l.id} className="flex items-center justify-between rounded-lg px-3 py-2.5 bg-card border border-sand">
+                  <span className="font-body text-sm text-ink">{l.site}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[11px] text-muted">
+                      {daysSince(l.posted_date)}d listed
+                    </span>
+                    {l.url && <ExternalLink size={13} className="text-muted" />}
+                  </div>
+                </div>
+              ))}
+              {(item.listings || []).filter((l) => l.active).length === 0 && (
+                <p className="text-xs font-mono text-muted">Not currently listed anywhere.</p>
+              )}
+            </div>
+
+            {!showSellForm ? (
+              <button
+                onClick={() => setShowSellForm(true)}
+                className="w-full py-2.5 rounded-lg font-mono text-xs font-semibold bg-deeprust text-paper"
+              >
+                Mark as sold
+              </button>
+            ) : (
+              <form onSubmit={handleMarkSold} className="rounded-lg border border-sand bg-card p-3 space-y-2.5">
+                <div className="text-[11px] uppercase tracking-wide font-mono text-muted">Record the sale</div>
+                <input
+                  value={buyerName}
+                  onChange={(e) => setBuyerName(e.target.value)}
+                  placeholder="Buyer name"
+                  className="w-full px-3 py-2 rounded border border-sand bg-paper font-body text-sm text-ink"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={buyerEmail}
+                    onChange={(e) => setBuyerEmail(e.target.value)}
+                    placeholder="Email (optional)"
+                    className="px-3 py-2 rounded border border-sand bg-paper font-body text-xs text-ink"
+                  />
+                  <input
+                    value={buyerPhone}
+                    onChange={(e) => setBuyerPhone(e.target.value)}
+                    placeholder="Phone (optional)"
+                    className="px-3 py-2 rounded border border-sand bg-paper font-body text-xs text-ink"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="Sale price"
+                    className="px-3 py-2 rounded border border-sand bg-paper font-mono text-sm text-ink"
+                  />
+                  <input
+                    value={site}
+                    onChange={(e) => setSite(e.target.value)}
+                    placeholder="Sold via"
+                    className="px-3 py-2 rounded border border-sand bg-paper font-mono text-sm text-ink"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full py-2 rounded-lg font-mono text-xs font-semibold bg-rust text-[#1F2A24] disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : "Confirm sale"}
+                </button>
+              </form>
+            )}
+          </>
         )}
 
         <button
