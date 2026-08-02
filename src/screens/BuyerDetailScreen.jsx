@@ -1,5 +1,5 @@
 import React from "react";
-import { Header } from "../components/Chrome";
+import { Header, formatDate } from "../components/Chrome";
 
 export default function BuyerDetailScreen({ buyer, onBack }) {
   return (
@@ -27,7 +27,7 @@ export default function BuyerDetailScreen({ buyer, onBack }) {
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-mono text-[10px] text-muted">
-                  {new Date(s.sale_date).toLocaleDateString()}
+                  {formatDate(s.sale_date)}
                 </span>
                 <span className="font-mono text-[10px] text-muted">via {s.site}</span>
               </div>
