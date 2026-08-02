@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { Header } from "../components/Chrome";
 
-export default function AccountsScreen({ onSelectAccount }) {
+export default function AccountsScreen({ onSelectAccount, refreshAccounts }) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingAccount, setAddingAccount] = useState(false);
@@ -38,6 +38,7 @@ export default function AccountsScreen({ onSelectAccount }) {
     setAddingAccount(false);
     setSaving(false);
     await load();
+    if (refreshAccounts) await refreshAccounts();
   }
 
   return (
