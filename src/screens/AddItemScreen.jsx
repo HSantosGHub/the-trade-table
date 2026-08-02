@@ -3,22 +3,55 @@ import { Camera } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { Header } from "../components/Chrome";
 
-const SITE_OPTIONS = ["eBay", "COMC", "TCGPlayer", "Facebook", "Mercari", "Whatnot"];
-
-export default function AddItemScreen({ categories, onDone, onBack, refreshCategories }) {
+export default function AddItemScreen({ categories, onDone, onBack, refreshCategories, sites, refreshSites, accounts, refreshAccounts }) {
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState(categories[0]?.id || "");
   const [newCategory, setNewCategory] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
   const [cost, setCost] = useState("");
   const [value, setValue] = useState("");
-  const [sites, setSites] = useState([]);
+  const [selectedSites, setSelectedSites] = useState([]);
+  const [newSite, setNewSite] = useState("");
+  const [addingSite, setAddingSite] = useState(false);
+  const [fundingAccountId, setFundingAccountId] = useState("");
+  const [newAccount, setNewAccount] = useState("");
+  const [addingAccount, setAddingAccount] = useState(false);
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  function toggleSite(site) {
-    setSites((prev) => (prev.includes(site) ? prev.filter((s) => s !== site) : [...prev, site]));
+  function toggleSite(siteName) {
+    setSelectedSites((prev) => (prev.includes(siteName) ? prev.filter((s) => s !== siteName) : [...prev, siteName]));
+  }
+
+  async function handleCreateAccount() {
+    if (!newAccount.trim()) return;
+    const { data, error } = await supabase
+      .from("accounts")
+      .insert({ name: newAccount.trim() })
+      .select()
+      .single();
+    if (!error) {
+      await refreshAccounts();
+      setFundingAccountId(data.id);
+      setNewAccount("");
+      setAddingAccount(false);
+    } else {
+      setError(error.message);
+    }
+  }
+
+  async function handleCreateSite() {
+    if (!newSite.trim()) return;
+    const { error } = await supabase.from("sites").insert({ name: newSite.trim() });
+    if (!error) {
+      await refreshSites();
+      setSelectedSites((prev) => [...prev, newSite.trim()]);
+      setNewSite("");
+      setAddingSite(false);
+    } else {
+      setError(error.message);
+    }
   }
 
   async function handleCreateCategory() {
@@ -55,6 +88,7 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
         category_id: categoryId || null,
         cost: Number(cost) || 0,
         value: Number(value) || 0,
+        funding_account_id: fundingAccountId || null,
       })
       .select()
       .single();
@@ -65,9 +99,18 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
       return;
     }
 
-    if (sites.length > 0) {
+    if (fundingAccountId && Number(cost) > 0) {
+      await supabase.from("account_transactions").insert({
+        account_id: fundingAccountId,
+        type: "withdrawal",
+        amount: Number(cost),
+        item_id: item.id,
+      });
+    }
+
+    if (selectedSites.length > 0) {
       await supabase.from("listings").insert(
-        sites.map((site) => ({ item_id: item.id, site }))
+        selectedSites.map((site) => ({ item_id: item.id, site }))
       );
     }
 
@@ -144,6 +187,12 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
               <input
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleCreateCategory();
+                  }
+                }}
                 placeholder="Category name"
                 className="flex-1 px-3 py-2 rounded border border-sand bg-card font-body text-sm text-ink"
               />
@@ -182,22 +231,107 @@ export default function AddItemScreen({ categories, onDone, onBack, refreshCateg
         </div>
 
         <div>
-          <label className="text-[11px] uppercase tracking-wide font-mono text-muted">List on</label>
-          <div className="flex flex-wrap gap-2 mt-1">
-            {SITE_OPTIONS.map((site) => (
+          <label className="text-[11px] uppercase tracking-wide font-mono text-muted">Funded from (optional)</label>
+          {!addingAccount ? (
+            <div className="flex gap-2 mt-1">
+              <select
+                value={fundingAccountId}
+                onChange={(e) => setFundingAccountId(e.target.value)}
+                className="flex-1 px-3 py-2 rounded border border-sand bg-card font-body text-sm text-ink"
+              >
+                <option value="">None</option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
-                key={site}
-                onClick={() => toggleSite(site)}
+                onClick={() => setAddingAccount(true)}
+                className="px-3 py-2 rounded border border-rust text-rust text-xs font-mono"
+              >
+                + New
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2 mt-1">
+              <input
+                value={newAccount}
+                onChange={(e) => setNewAccount(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleCreateAccount();
+                  }
+                }}
+                placeholder="Account name"
+                className="flex-1 px-3 py-2 rounded border border-sand bg-card font-body text-sm text-ink"
+              />
+              <button
+                type="button"
+                onClick={handleCreateAccount}
+                className="px-3 py-2 rounded bg-deeprust text-paper text-xs font-mono"
+              >
+                Save
+              </button>
+            </div>
+          )}
+          {fundingAccountId && Number(cost) > 0 && (
+            <p className="text-[11px] font-mono text-muted mt-1">
+              Logs a ${Number(cost).toFixed(2)} withdrawal to this account.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="text-[11px] uppercase tracking-wide font-mono text-muted">List on</label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {sites.filter((s) => s.active).map((s) => (
+              <button
+                type="button"
+                key={s.id}
+                onClick={() => toggleSite(s.name)}
                 className="px-3 py-1 rounded-full text-xs font-mono border border-rust"
                 style={{
-                  background: sites.includes(site) ? "#2F5233" : "transparent",
-                  color: sites.includes(site) ? "#EDE6D6" : "#4A4032",
+                  background: selectedSites.includes(s.name) ? "#2F5233" : "transparent",
+                  color: selectedSites.includes(s.name) ? "#EDE6D6" : "#4A4032",
                 }}
               >
-                {site}
+                {s.name}
               </button>
             ))}
+            {!addingSite ? (
+              <button
+                type="button"
+                onClick={() => setAddingSite(true)}
+                className="px-3 py-1 rounded-full text-xs font-mono border border-sand text-muted"
+              >
+                + New site
+              </button>
+            ) : (
+              <div className="flex gap-2 w-full mt-1">
+                <input
+                  value={newSite}
+                  onChange={(e) => setNewSite(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateSite();
+                    }
+                  }}
+                  placeholder="Site name"
+                  className="flex-1 px-3 py-2 rounded border border-sand bg-card font-body text-sm text-ink"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateSite}
+                  className="px-3 py-2 rounded bg-deeprust text-paper text-xs font-mono"
+                >
+                  Save
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
