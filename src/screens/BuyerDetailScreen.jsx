@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { Header, formatDate } from "../components/Chrome";
 
@@ -9,6 +9,9 @@ export default function BuyerDetailScreen({ buyer, onBack, onChanged }) {
   const [editEmail, setEditEmail] = useState(buyer.email || "");
   const [editPhone, setEditPhone] = useState(buyer.phone || "");
   const [saving, setSaving] = useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function handleSave() {
     if (!editName.trim()) return;
@@ -26,6 +29,14 @@ export default function BuyerDetailScreen({ buyer, onBack, onChanged }) {
     onBack();
   }
 
+  async function handleDelete() {
+    setDeleting(true);
+    await supabase.from("buyers").delete().eq("id", buyer.id);
+    setDeleting(false);
+    onChanged();
+    onBack();
+  }
+
   return (
     <div className="pb-24">
       <Header
@@ -33,9 +44,14 @@ export default function BuyerDetailScreen({ buyer, onBack, onChanged }) {
         onBack={onBack}
         right={
           !isEditing && (
-            <button onClick={() => setIsEditing(true)} className="p-1.5 text-paper">
-              <Pencil size={18} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setIsEditing(true)} className="p-1.5 text-paper">
+                <Pencil size={18} />
+              </button>
+              <button onClick={() => setShowDeleteConfirm(true)} className="p-1.5 text-paper">
+                <Trash2 size={18} />
+              </button>
+            </div>
           )
         }
       />
@@ -117,6 +133,33 @@ export default function BuyerDetailScreen({ buyer, onBack, onChanged }) {
           )}
         </div>
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-6">
+          <div className="w-full max-w-xs rounded-lg bg-card p-4 border border-sand">
+            <h3 className="font-display text-base text-ink mb-1">Delete {buyer.name}?</h3>
+            <p className="text-xs font-body text-muted mb-4">
+              This action cannot be undone. Their contact info will be permanently removed. Past
+              sales stay in your sold history, but will no longer show a buyer name attached.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold border border-sand text-muted"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-2 rounded-lg font-mono text-xs font-semibold bg-deeprust text-paper disabled:opacity-60"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
