@@ -1,0 +1,17 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .word { font-family: 'Fraunces', Georgia, serif; font-weight: 600; }
+    </style>
+  </defs>
+
+  <rect width="500" height="500" fill="#FFFFFF" />
+
+  <!-- double ring -->
+  <circle cx="250" cy="250" r="215" fill="none" stroke="#B54A2C" stroke-width="3" />
+  <circle cx="250" cy="250" r="198" fill="none" stroke="#B54A2C" stroke-width="7" />
+
+  <!-- centered wordmark -->
+  <text x="250" y="243" text-anchor="middle" class="word" font-size="40" fill="#B54A2C">THE TRADE</text>
+  <text x="250" y="298" text-anchor="middle" class="word" font-size="40" fill="#B54A2C">TABLE</text>
+</svg>
